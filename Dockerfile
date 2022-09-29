@@ -69,5 +69,5 @@ ADD dataverse_download.py /pipeline/
 RUN python /pipeline/dataverse_download.py https://covid-commons.osu.edu/ doi:10.5072/FK2/MMX6FY /pipeline/output/
 
 # Set the default command to a usage statement
-CMD echo "Usage generate Metadata drexel version for MinnowsProject: /n"\
+CMD echo "Usage generate Metadata drexel version for Minnows Project:\n"\
 "gen_metadata.py  <fish_image.jpg> <metadata.json> <mask.png>"

@@ -948,7 +948,7 @@ def gen_metadata_safe(file_path):
 def show_usage_drexel():
     
     print()
-    print(f'Usage : {sys.argv[0]} <file_path> <output.json>/n')
+    print(f'Usage : {sys.argv[0]} <file_path> <output.json>\n')
     print('Version drexel with output format for BGNN')
 
 def main_drexel():
@@ -1043,8 +1043,8 @@ def reformat_for_bgnn(result):
     dict_fish = {'fish_num': fish_num,"bbox":fish_bbox, 
                  'pixel_analysis':pixel_analysis, 'rescale':"None", 
                  'eye_bbox': "None", 'eye_center':eye_center , 'angle_degree': "None",
-                 'eye_direction':eye_direction, 'foreground_mean':foreground_mean, 
-                 'background_mean':background_mean}
+                 'eye_direction':eye_direction, 'foreground_mean':round(foreground_mean,2), 
+                 'background_mean':round(background_mean,2)}
     
     # Ruler metadata
     ruler_bbox  = first_value['ruler_bbox'] if first_value['has_ruler'] else "None"
@@ -1100,7 +1100,7 @@ def main_bgnn(input_file, output_result, output_mask):
 def show_usage_bgnn():
     
     #print()
-    print(f'Usage : {sys.argv[0]} <file_path> <metadata.json> <mask.png>/n')
+    print(f'Usage : {sys.argv[0]} <file_path> <metadata.json> <mask.png>\n')
     print('Version drexel with output format for BGNN using "main_bgnn()"')
 
 
