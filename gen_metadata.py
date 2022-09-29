@@ -1,3 +1,24 @@
+#!/usr/local/bin/python
+#' Adapatation for BGNN snakemake (minnows project)
+#  on Mon Aug  8 11:35:50 2022
+#' @author
+#' Joel Pepper: initial code
+#' Kevin Karnani: modified it
+#' Thibault Tabarin: modify for minnow project
+
+#' @description
+#' Minnows version original code developped by Joel Pepper and Kevin Karnani'
+#' Using the detectron2 framework from Facebook, we detect fish, eye and ruler object and
+#' collect metadata information such bounding box, fish mask, eye center, fish orientation...
+#' The added version of the ouput are
+#' Dictionnary with metadata:  {"base_name": "", "fish":
+#' {"fish_num": , "bbox": [], "pixel_analysis": true, "eye_bbox": [], "eye_center": [],
+#' "angle_degree": 9.070674226380035, "eye_direction": "left", "foreground_mean": ,
+#' "foreground_std": , "background_mean": , "background_std": },
+#' "ruler": {"bbox": [], "scale": , "unit": ""}}
+#' And fish mask (binary image)
+
+
 import json
 import math
 import os
@@ -20,35 +41,41 @@ from scipy import stats
 from skimage import filters, measure
 from skimage.morphology import flood_fill
 from torch.multiprocessing import Pool
-
+import warnings
+warnings.filterwarnings("ignore")
 # torch.multiprocessing.set_start_method('forkserver')
 
+# ensure the look at the right place for the configuration file
+root_file_path = os.path.dirname(__file__)
+
 VAL_SCALE_FAC = 0.5
-conf = json.load(open('config/config.json', 'r'))
+conf = json.load(open(os.path.join(root_file_path,'config/config.json'), 'r'))
 ENHANCE = bool(conf['ENHANCE'])
-JOEL = bool(conf['JOEL'])
+PROCESSOR = conf['PROCESSOR']
+VERSION = conf['Version'] # option changeable in the config file : "drexel" or "bgnn"
 IOU_PCT = .02
 
 with open('config/mask_rcnn_R_50_FPN_3x.yaml', 'r') as f:
     iters = yaml.load(f, Loader=yaml.FullLoader)["SOLVER"]["MAX_ITER"]
 
 
-def init_model(enhance_contrast=ENHANCE, joel=JOEL):
+def init_model(processor=PROCESSOR):
     """
     Initialize model using config files for RCNN, the trained weights, and other parameters.
 
     Returns:
         predictor -- DefaultPredictor(**configs).
     """
+    root_file_path = os.path.dirname(__file__)
     cfg = get_cfg()
-    cfg.merge_from_file("config/mask_rcnn_R_50_FPN_3x.yaml")
+    cfg.merge_from_file(os.path.join(root_file_path,'config/mask_rcnn_R_50_FPN_3x.yaml'))
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 5
-    if not joel:
-        cfg.OUTPUT_DIR += f"/non_enhanced" if not enhance_contrast else f"/enhanced"
-        # cfg.OUTPUT_DIR += f"/non_enhanced_{iters}" if not enhance_contrast else f"/enhanced_{iters}"
+    OUTPUT_DIR = os.path.join(root_file_path, 'output')
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3
+    cfg.MODEL.DEVICE = processor
     predictor = DefaultPredictor(cfg)
+    
     return predictor
 
 
@@ -135,14 +162,18 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
     if visualize:
         cv2.imshow('prediction', np.array(vis.get_image()[:, :, ::-1], dtype=np.uint8))
         cv2.waitKey(0)
-    os.makedirs('images', exist_ok=True)
-    os.makedirs('images/enhanced', exist_ok=True)
-    os.makedirs('images/non_enhanced', exist_ok=True)
-    dirname = 'images/'
-    dirname += 'enhanced/' if enhance_contrast else 'non_enhanced/'
-    print(file_name)
-    cv2.imwrite(f'{dirname}/gen_prediction_{f_name}.png',
-                vis.get_image()[:, :, ::-1])
+        
+    if False:    # to save visualization of the prediction       
+        os.makedirs('images', exist_ok=True)
+        os.makedirs('images/enhanced', exist_ok=True)
+        os.makedirs('images/non_enhanced', exist_ok=True)
+        dirname = 'images/'
+        dirname += 'enhanced/' if enhance_contrast else 'non_enhanced/'
+        print(file_name)
+        cv2.imwrite(f'{dirname}/gen_prediction_{f_name}.png',
+                        vis.get_image()[:, :, ::-1])
+    
+
     skippable_fish = []
     fish_length = 0
     if fish:
@@ -191,6 +222,10 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
             val = adaptive_threshold(bbox, im_gray)
             bbox, mask, pixel_anal_failed = gen_mask(bbox, file_path,
                                                      file_name, im_gray, val, detectron_mask)
+            
+            # Convert the nask to np.uint8 to save it latter
+            mask_uint8 = np.where(mask == 1, 255, 0).astype(np.uint8)
+            
             centroid, evecs, cont_length, cont_width, length, width, area = pca(mask, scale)
             major, minor = evecs[0], evecs[1]
 
@@ -297,7 +332,7 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
     results['fish_count'] = len(insts[(insts.pred_classes == 0).logical_and(insts.scores > 0.3)]) - \
                             len(skippable_fish) if multiple_fish else int(results['has_fish'])
     results['detected_fish_count'] = fish_length
-    return {f_name: results}
+    return {f_name: results}, mask_uint8
 
 
 def gen_metadata_upscale(file_path, fish):
@@ -861,17 +896,6 @@ def gen_mask(bbox, file_path, file_name, im_gray, val, detectron_mask, flipped=F
         new_mask = detectron_mask.astype('uint8')
         bbox = bbox_orig
         failed = True
-    # arr4 = np.where(new_mask == 1, 255, 0).astype(np.uint8)
-    # (left, top, right, bottom) = shrink_bbox(new_mask)
-    # arr4[top:bottom, left] = 175
-    # arr4[top:bottom, right] = 175
-    # arr4[top, left:right] = 175
-    # arr4[bottom, left:right] = 175
-    # im2 = Image.fromarray(arr4, 'L')
-    # dirname = 'images/'
-    # dirname += 'enhanced/' if ENHANCE else 'non_enhanced/'
-    # f_name = file_name.split('.')[0]
-    # im2.save(f'{dirname}/gen_mask_{f_name}.png')
     return bbox, new_mask, failed
 
 
@@ -915,37 +939,188 @@ def gen_metadata_safe(file_path):
     Deals with erroneous metadata generation errors.
     """
     try:
-        return gen_metadata(file_path)
+        result, mask_uint8 = gen_metadata(file_path)
+        return result, mask_uint8
     except Exception as e:
         print(f'{file_path}: Errored out ({e})')
         return {file_path: {'errored': True}}
 
+def show_usage_drexel():
+    
+    print()
+    print(f'Usage : {sys.argv[0]} <file_path> <output.json>/n')
+    print('Version drexel with output format for BGNN')
 
-def main():
-    direct = sys.argv[1]
-    if os.path.isdir(direct):
-        files = [entry.path for entry in os.scandir(direct)]
-        if len(sys.argv) > 2:
-            files = files[:int(sys.argv[2])]
+def main_drexel():
+    """
+    Main function from Drexel version used by Joel and Kevin
+    the result are save automatically in folder and file describe in the following code
+    The input is the extract from argument passed to the fucntion called in command line:
+        Input could be :
+            + folder containing many image files
+            + a single file 
+            + a serie of file
+        output :
+            if multi files, everything is aggregated in adictionary save as "metadata.json"
+            if single file, print the file as pretty print
+    Arguments input :
+        if only one : a folder or a single file
+        if more than 1
+    Returns
+    -------
+    None.
+
+    """
+    # show usage if no argument given
+
+    
+    if len(sys.argv)==2:
+        
+        direct = sys.argv[1]
+        fname = "metadata.json"
+        if os.path.isdir(direct):
+            files = [entry.path for entry in os.scandir(direct)]
+        else:
+            files = [direct]
+            
+   # show usage if wrong number of arguments given
     else:
-        files = [direct]
+        show_usage_drexel()
+        return
+    
     #with Pool(2) as p:
     #    results = p.map(gen_metadata_safe, files)
     results = map(gen_metadata_safe, files)
+    
     output = {}
-    for i in results:
+    for i,mask in results:
         output[list(i.keys())[0]] = list(i.values())[0]
-    fname = f'metadata_{iters}.json' if not JOEL else 'metadata.json'
-    if ENHANCE:
-        fname = 'enhanced_' + fname
-    else:
-        fname = 'non_enhanced_' + fname
-    if len(output) > 1:
-        with open(fname, 'w') as f:
-            json.dump(output, f)
-    else:
-        pprint.pprint(output)
+
+    with open(fname, 'w') as f:
+        json.dump(output, f)
+
+
+def reformat_for_bgnn(result):
+    """
+    Reformat and reduce the size of the result dictionary. 
+    Collect only the data necessary for BGNN minnow project. The new format matches the 
+    BGNN_metadata version. Therefore some of the value not calcualted in drexel version are by 
+    defaulset to "None". 
+
+    Parameters
+    ----------
+    result : dict
+        DESCRIPTION. output from gen_metadata()
+
+    Returns
+    -------
+    bgnn_result : dict
+        DESCRIPTION. {'base_name': xx, 'version':xx, 
+                       'fish': {'fish_num': xx,"bbox":xx, 'pixel_analysis':xx, 'rescale':xx, 
+                            'eye_bbox': xx, 'eye_center':xx , 'angle_degree': xx,
+                            'eye_direction':xx, 'foreground_mean':xx, 'background_mean':xx}, 
+                       'ruler': {'bbox':xx, 'scale':xx, 'unit':xx}}
+
+    """
+    
+    name_base = list(result.keys())[0]
+    first_value = list(result.values())[0]
+    
+    # Fish metadata
+    fish_num = first_value['fish_count']
+    fish_bbox = first_value['fish'][0]['bbox']
+    pixel_analysis = False if first_value['fish'][0]['pixel_analysis_failed'] else True
+    
+    if first_value['fish'][0]['has_eye']:
+        eye_center = first_value['fish'][0]['eye_center']
+    else :
+        eye_center = "None"
+    
+    eye_direction = first_value['fish'][0]['side']
+    foreground_mean = first_value['fish'][0]['foreground']['mean']
+    background_mean = first_value['fish'][0]['background']['mean']
+        
+    dict_fish = {'fish_num': fish_num,"bbox":fish_bbox, 
+                 'pixel_analysis':pixel_analysis, 'rescale':"None", 
+                 'eye_bbox': "None", 'eye_center':eye_center , 'angle_degree': "None",
+                 'eye_direction':eye_direction, 'foreground_mean':foreground_mean, 
+                 'background_mean':background_mean}
+    
+    # Ruler metadata
+    ruler_bbox  = first_value['ruler_bbox'] if first_value['has_ruler'] else "None"
+    scale = first_value['ruler_bbox'] if "scale" in first_value.keys() else "None"
+    unit = first_value['unit'] if "unit" in first_value.keys() else "None"
+    
+    dict_ruler = {'bbox':ruler_bbox, 'scale':scale, 'unit':unit}
+    
+    bgnn_result = {'base_name': name_base, 'version':"from drexel", 
+                   'fish': dict_fish, 'ruler': dict_ruler} 
+    
+    return bgnn_result
+
+
+def main_bgnn(input_file, output_result, output_mask):
+    '''
+    Use the "gen_metadata" through  gen_metadata_safe
+    1- Calculate metadata and mask with gen_metadata()
+    2- Reformat the result to a simplified version for bgnn minnows project
+    3- save the result in outputs (.json amd .png files)
+
+    Parameters
+    ----------
+    file_path : string
+        location of the imae file to analysis.
+    output_json : string
+        path for dictionnary output in json format (expected '/path/to/save/my_output.json').
+    output_mask : string
+        path for mask image output in png format (expected '/path/to/save/my_mask.png').
+
+    Returns
+    -------
+    None.
+
+    '''
+    try:
+        result, mask_uint8 = gen_metadata(input_file)
+        
+        bgnn_result = reformat_for_bgnn(result)
+        
+    except Exception as e:
+            # write the error in the result dictionnary
+            bgnn_result['error'] = f'({e})'
+            print(f'{input_file}: Errored out ({e})')
+            
+    with open(output_result, 'w') as f:
+        json.dump(bgnn_result, f)
+    
+    if output_mask != None:
+        cv2.imwrite(output_mask, mask_uint8)   
+
+
+def show_usage_bgnn():
+    
+    #print()
+    print(f'Usage : {sys.argv[0]} <file_path> <metadata.json> <mask.png>/n')
+    print('Version drexel with output format for BGNN using "main_bgnn()"')
 
 
 if __name__ == '__main__':
-    main()
+    
+    if VERSION == 'drexel':
+        print(f'version : {VERSION}')
+        main_drexel()
+        
+    if VERSION == 'bgnn':
+        if len(sys.argv) == 4:
+            print(f'version : drexel for {VERSION}')
+            input_file = sys.argv[1]
+            output_json = sys.argv[2]
+            output_mask = sys.argv[3]
+            main_bgnn(input_file, output_json, output_mask)
+        else:
+            show_usage_bgnn()
+            
+            
+        
+        
+    
