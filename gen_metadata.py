@@ -1048,7 +1048,7 @@ def reformat_for_bgnn(result):
     
     # Ruler metadata
     ruler_bbox  = first_value['ruler_bbox'] if first_value['has_ruler'] else "None"
-    scale = first_value['ruler_bbox'] if "scale" in first_value.keys() else "None"
+    scale = round(first_value['scale'],2) if "scale" in first_value.keys() else "None"
     unit = first_value['unit'] if "unit" in first_value.keys() else "None"
     
     dict_ruler = {'bbox':ruler_bbox, 'scale':scale, 'unit':unit}
