@@ -1,13 +1,14 @@
 # Drexel Metadata
 
 ## Goal
-To develop a tool to check the validity of metadata associated with an image, and generate things that are missing. Also includes various geometric and statistical properties on the mask generated over the biological specimen presented.
+
+The objective of this repos is to present a methodology using Neural network and classic image processing to extract automatically metadata information from fish image coming from museum. The code was initially develop by Joel Pepper and Kevin karnani who essential train a neural network model (detectron2) to identify object in the image just as fish, fish eye, scale and number on the scale ("2', "3"). In second phase "pixel analysis" technique was used to refine the mask detection around the fish. In a third phase, various classic image processing techniques were used to calculate dimension and various properties on each objects such as (fish bounding box, fish orientation, eye orientation, scale bar value....)
 
 ## Functionality
 
-Object detection is currently being performed on 5 detection classes (fish, fish eyes, rulers, and the twos and threes found on rulers). The current setup is performed on the INHS and UWZM biological specimen image repositories.
+Object detection (detectron2) is currently being performed on 5 detection classes (fish, fish eyes, rulers, and the twos and threes found on rulers). The current setup is performed on the INHS and UWZM biological specimen image repositories.
 
-### Current Criteria
+### Current Criteria on which the model has been develop
 
 1. Image must contain a fish species (no eels, seashells, butterflies, seahorses,
 snakes, etc).
@@ -20,6 +21,15 @@ in training set).
 7. Fish body must not be folded and should have no curvature.
 
 These do not need to be adhered to if properly set up/modified for a specific use case.
+The model is available on data commons osc as "Drexel_metadata_generator" at https://datacommons.tdai.osu.edu/dataverse/fish-traits/ 
+However this model is not published yet. To download you need an acount on datacommons.tdai.osu and you will need to create a DATAVERS_API_TOKEN 
+and you can use :
+```
+python dataverse_download.py https://covid-commons.osu.edu/ doi:10.5072/FK2/MMX6FY output/
+```
+Or you can do it manually on the web page  https://datacommons.tdai.osu.edu/dataset.xhtml?persistentId=doi%3A10.5072%2FFK2%2FMMX6FY&version=DRAFT
+
+If you don't have an account the model is usable via the container iamge locatated in this repo in package.
 
 ### Dependencies
 
@@ -65,10 +75,18 @@ The metadata generated is extremely specific to our use case. In addition, we pe
 3. Contrast enhancement (CLAHE)
 
 The metadata generated produces various statistical and geometric properties of a biological specimen image or collection in a JSON format. When a single file is passed, the data is yielded to the console (stdout). When a directory is passed, the data is stored in a JSON file.
+There is current ly 2 versions on the drexel :
+
+### 1- Original version: developped by Kevin Karnani and Joel Pepper: 
+
+To activate this version in the config/config.json file set "Version" to "drexel"
+'''
+"Version":"drexel"
+'''
 
 To generate the metadata, run the following command:
-```bash
-pipenv run python3 gen_metadata.py [file_or_dir_name]
+```
+python gen_metadata.py [file_or_dir_name]
 ```
 
 ## Properties Generated
@@ -113,6 +131,43 @@ pipenv run python3 gen_metadata.py [file_or_dir_name]
 | skew                 | Per Fish                 | 2D Vector         | The measure of asymmetry of the frequency-distribution curve of mask pixel coordinates.                                          |
 | solidity             | Per Fish                 | Float             | The ratio of pixels in the fish to pixels of the convex hull image.                                                              |
 | std             | Per Fish                 | Float             | The standard deviation of the mask pixel coordinate distribution. |
+
+
+### 2- BGNN version : adaption by Thibault Tabarin
+
+In this version, we have reshape the output format and simplying it to match the requirement of the [BGNN_Snakemake workflow](https://github.com/hdr-bgnn/BGNN_Snakemake).
+
+To activate this version in the config/config.json file set "Version" to "bgnn"
+'''
+"Version":"bgnn"
+'''
+
+Usage:
+```
+python gen_metadata.py <input_file> <metadata.json> <mask.png>
+```
+
+#### metadata.json
+| Key                   | Association   | Type    | Explanation                                                            |
+|:----------------------|:--------------|:--------|:-----------------------------------------------------------------------|
+| Base_name             | Overall image | string  | image name without extension                                           |
+| version               | Overall image | stirng  | explicitly indicate if output from drexel code or BGNN_metadata        |
+| fish                  | Fish          | dict    | collect metadata of the "main fish" with the highest score             |
+| fish.fish_num         | Fish          | int     | number of fish detected in the image                                   |
+| fish.bbox             | Fish          | list    | Bounding box of the main fish [left,top,right,bottom]                  |
+| fish.pixel_analysis   | Fish          | boolean | If pixel analysis succeeded True, else False                           |
+| fish.rescale          | Fish          | string  | Indicate if “rescale” was used to detect the eye                       |
+| fish.eye_bbox         | Fish          | list    | Bounding box of the eye in the main fish [l,t,r,b]                     |
+| fish.angle_degree     | Fish          | float   | angle of the PCA of the mask                                           |
+| fish.eye_direction    | Fish          | string  | eye facing left or righ                                                |
+| fish. foreground_mean | Fish          | float   | Average of pixel value inside the mask                                 |
+| fish.foreground_std   | Fish          | float   | Standart deviation of pixel value inside the mask                      |
+| ruler                 | Ruler         | dict    | collect metadata of the ruler                                          |
+| ruler.bbox            | Ruler         | list    | Bounding box of the ruler [left,top,right,bottom]                      |
+| ruler.scale           | Ruler         | float   | pixel/unit (distance between number "2" and "3" corrected by the unit) |
+| ruler.unit            | Ruler         | string  | indicate unit (cm or inch) in which the scale is express (pixel/cm)    |
+
+#### Mask.png
 
 ## Authors
 
