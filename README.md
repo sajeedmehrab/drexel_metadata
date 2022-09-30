@@ -169,9 +169,42 @@ python gen_metadata.py <input_file> <metadata.json> <mask.png>
 
 #### Mask.png
 
+## Container and usage
+
+We use github action to create a docker image base on the Dockerfile. the containerized version is the bgnn format (in config/config.json "Version":"bgnn")
+
+To use the container:
+1- pull the image 
+```
+docker pull ghcr.io/hdr-bgnn/drexel_metadata:release
+```
+or 
+```
+singularity pull docker://ghcr.io/hdr-bgnn/drexel_metadata:release
+```
+
+2- execute the contianer with singularity
+```
+singularity exec drexel_metadata_release.sif python /pipeline/gen_metadata.py <input_file> <metadata.json> <mask.png>
+```
+
+## Alternative repository [BGNN_metadata](https://github.com/thibaulttabarin/BGNN_metadata/) 
+
+In this other repo we have refactorized the code to increase readability and help further development. We removed unused part (stemming from development), integrated more appropriate libraries. We reoprganised the folders structure and imporve documentation. This repository is "work in progress", the training folder is marked "to be done".
+During the improvement (refactorization and restructuration), we modify the original repository too much, therefore we decided to create in parallele this [BGNN_metadata](https://github.com/thibaulttabarin/BGNN_metadata/).
+If the existence of repositiory improve usability and further development and this original repository is not maintained, we should consider switch to this new repos version.
+
+## Associated Publication
+
+[Joel Pepper et al.](https://ieeexplore.ieee.org/document/9651834)
+
+[Kevin Karnani et al.] (https://assets.researchsquare.com/files/rs-1506561/v1_covered.pdf?c=1651071974)
+
 ## Authors
 
 Joel Pepper
 
 Kevin Karnani
+
+Thibault Tabarin
 
