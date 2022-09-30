@@ -40,7 +40,7 @@ from matplotlib import pyplot as plt
 from scipy import stats
 from skimage import filters, measure
 from skimage.morphology import flood_fill
-from torch.multiprocessing import Pool
+#from torch.multiprocessing import Pool
 import warnings
 warnings.filterwarnings("ignore")
 # torch.multiprocessing.set_start_method('forkserver')
@@ -55,8 +55,8 @@ PROCESSOR = conf['PROCESSOR']
 VERSION = conf['Version'] # option changeable in the config file : "drexel" or "bgnn"
 IOU_PCT = .02
 
-with open('config/mask_rcnn_R_50_FPN_3x.yaml', 'r') as f:
-    iters = yaml.load(f, Loader=yaml.FullLoader)["SOLVER"]["MAX_ITER"]
+#with open(os.path.join(root_file_path,'config/mask_rcnn_R_50_FPN_3x.yaml'), 'r') as f:
+    #iters = yaml.load(f, Loader=yaml.FullLoader)["SOLVER"]["MAX_ITER"]
 
 
 def init_model(processor=PROCESSOR):
@@ -71,7 +71,7 @@ def init_model(processor=PROCESSOR):
     cfg.merge_from_file(os.path.join(root_file_path,'config/mask_rcnn_R_50_FPN_3x.yaml'))
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 5
     OUTPUT_DIR = os.path.join(root_file_path, 'output')
-    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
+    cfg.MODEL.WEIGHTS = os.path.join(OUTPUT_DIR, "model_final.pth")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3
     cfg.MODEL.DEVICE = processor
     predictor = DefaultPredictor(cfg)
