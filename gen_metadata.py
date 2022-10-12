@@ -40,10 +40,9 @@ from matplotlib import pyplot as plt
 from scipy import stats
 from skimage import filters, measure
 from skimage.morphology import flood_fill
-#from torch.multiprocessing import Pool
 import warnings
-warnings.filterwarnings("ignore")
-# torch.multiprocessing.set_start_method('forkserver')
+# remove harmless warning  intrinsic to the code structure 
+warnings.filterwarnings("ignore") 
 
 # ensure the look at the right place for the configuration file
 root_file_path = os.path.dirname(__file__)
