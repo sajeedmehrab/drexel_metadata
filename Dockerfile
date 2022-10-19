@@ -31,5 +31,4 @@ COPY --from=model_fetcher /model/cache/torch/hub/checkpoints/model_final.pth \
                           /pipeline/output/enhanced/model_final.pth
 COPY gen_metadata.py /pipeline
 
-COPY test.sh /pipeline
-CMD bash test.sh
+CMD echo "python gen_metadata.py"
