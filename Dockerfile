@@ -24,7 +24,7 @@ WORKDIR /pipeline
 COPY Pipfile /pipeline/.
 
 # Install requirements
-RUN pipenv install --skip-lock --system
+RUN pipenv install --skip-lock --system && pipenv --clear
 
 COPY config /pipeline/config
 COPY --from=model_fetcher /model/cache/torch/hub/checkpoints/model_final.pth \
