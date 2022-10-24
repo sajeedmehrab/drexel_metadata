@@ -55,7 +55,8 @@ def init_model(enhance_contrast=ENHANCE, joel=JOEL, device=None):
     return predictor
 
 
-def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_fish=False, device=None, maskfname=None):
+def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_fish=False, device=None, maskfname=None,
+                 visfname=None):
     """
     Generates metadata of an image and stores attributes into a Dictionary.
 
@@ -138,14 +139,15 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
     if visualize:
         cv2.imshow('prediction', np.array(vis.get_image()[:, :, ::-1], dtype=np.uint8))
         cv2.waitKey(0)
-    os.makedirs('images', exist_ok=True)
-    os.makedirs('images/enhanced', exist_ok=True)
-    os.makedirs('images/non_enhanced', exist_ok=True)
-    dirname = 'images/'
-    dirname += 'enhanced/' if enhance_contrast else 'non_enhanced/'
-    print(file_name)
-    cv2.imwrite(f'{dirname}/gen_prediction_{f_name}.png',
-                vis.get_image()[:, :, ::-1])
+    if not visfname:
+        os.makedirs('images', exist_ok=True)
+        os.makedirs('images/enhanced', exist_ok=True)
+        os.makedirs('images/non_enhanced', exist_ok=True)
+        dirname = 'images/'
+        dirname += 'enhanced/' if enhance_contrast else 'non_enhanced/'
+        print(file_name)
+        visfname = f'{dirname}/gen_prediction_{f_name}.png'
+    cv2.imwrite(visfname, vis.get_image()[:, :, ::-1])
     skippable_fish = []
     fish_length = 0
     if fish:
@@ -916,12 +918,12 @@ def shrink_bbox(mask):
     return cmin, rmin, cmax, rmax
 
 
-def gen_metadata_safe(file_path, maskfname=None, device=None):
+def gen_metadata_safe(file_path, maskfname=None, visfname=None, device=None):
     """
     Deals with erroneous metadata generation errors.
     """
     try:
-        return gen_metadata(file_path, maskfname=maskfname, device=device)
+        return gen_metadata(file_path, maskfname=maskfname, visfname=visfname, device=device)
     except Exception as e:
         print(f'{file_path}: Errored out ({e})')
         return {file_path: {'errored': True}}
@@ -941,6 +943,9 @@ def argument_parser():
     parser.add_argument('--maskfname',
                         help='Save a mask image with the provided filename. '
                              'Only supported when processing a single image file.')
+    parser.add_argument('--visfname',
+                        help='Overwrites default visualization filename. '
+                             'Only supported when processing a single image file.')
     return parser
 
 
@@ -959,10 +964,14 @@ def main():
     #    results = p.map(gen_metadata_safe, files)
     num_files = len(files)
     if num_files == 1:
-        results = [gen_metadata_safe(files[0], maskfname=args.maskfname, device=args.device)]
+        results = [gen_metadata_safe(files[0], maskfname=args.maskfname,
+                                     visfname=args.visfname, device=args.device)]
     else:
         if args.maskfname:
             print("Error: The `--maskfname` argument cannot be used with multiple input files.")
+            sys.exit(0)
+        if args.visfname:
+            print("error: the `--visfname` argument cannot be used with multiple input files.")
             sys.exit(0)
         results = map(gen_metadata_safe, files, device=[args.device] * num_files)
     output = {}
