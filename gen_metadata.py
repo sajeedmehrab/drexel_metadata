@@ -918,12 +918,12 @@ def shrink_bbox(mask):
     return cmin, rmin, cmax, rmax
 
 
-def gen_metadata_safe(file_path, maskfname=None, visfname=None, device=None):
+def gen_metadata_safe(file_path, device=None, maskfname=None, visfname=None):
     """
     Deals with erroneous metadata generation errors.
     """
     try:
-        return gen_metadata(file_path, maskfname=maskfname, visfname=visfname, device=device)
+        return gen_metadata(file_path, device=device, maskfname=maskfname, visfname=visfname)
     except Exception as e:
         print(f'{file_path}: Errored out ({e})')
         return {file_path: {'errored': True}}
@@ -973,7 +973,7 @@ def main():
         if args.visfname:
             print("error: the `--visfname` argument cannot be used with multiple input files.")
             sys.exit(0)
-        results = map(gen_metadata_safe, files, device=[args.device] * num_files)
+        results = map(gen_metadata_safe, files, [args.device] * num_files)
     output = {}
     for i in results:
         output[list(i.keys())[0]] = list(i.values())[0]
