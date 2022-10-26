@@ -27,7 +27,7 @@ COPY Pipfile /pipeline/.
 RUN pipenv install --skip-lock --system && pipenv --clear
 
 COPY config /pipeline/config
-COPY --from=model_fetcher /model/cache/torch/hub/checkpoints/model_final.pth \
+COPY --from=model_fetcher /model/model_final.pth \
                           /pipeline/output/enhanced/model_final.pth
 COPY gen_metadata.py /pipeline
 
