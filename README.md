@@ -81,6 +81,36 @@ To generate the metadata, run the following command:
 pipenv run python3 gen_metadata.py [file_or_dir_name]
 ```
 
+Usage:
+```
+gen_metadata.py [-h] [--device {cpu,cuda}] [--outfname OUTFNAME] [--maskfname MASKFNAME] [--visfname VISFNAME]
+                       file_or_directory [limit]
+```
+
+The `limit` parameter will limit 
+the number of files processed in the directory. The `limit` positional argument is only applicable when passing a directory. 
+
+#### Device Configuration
+By default `gen_metadata.py` requires a GPU (cuda).
+To use a CPU instead pass the `--device cpu` argument to `gen_metadata.py`.
+
+#### Single File Usage
+The following three arguments are only supported when processing a single image file:
+- `--outfname <filename>` - When passed the script will save the output metadata JSON to `<filename>` instead of printing to the console (the default behavior when processing one file).
+- `--maskfname <filename>` - Enables logic to save an output mask to `<filename>` for the single input file.
+- `--visfname <filename>` - Changes the script to save the output visualization to `<filename>` instead of the hard coded location.
+
+These arguments are meant to simplify adding `gen_metadata.py` to a workflow that process files individually.
+
+
+### Running with Singularity
+A Docker container is automatically built for each **drexel_metadata** release. This container has the requirements installed and includes the model file.
+To run the singularity container for a specific version follow this pattern:
+```
+singularity run docker://ghcr.io/hdr-bgnn/drexel_metadata:<release> python gen_metadata.py ...
+```
+
+
 ## Properties Generated
 
 | **Property**            | **Association** | **Type** | **Explanation**                                                                                                                                   |
@@ -135,5 +165,3 @@ pipenv run python3 gen_metadata.py [file_or_dir_name]
 Joel Pepper
 
 Kevin Karnani
-
-Thibault Tabarin
