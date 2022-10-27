@@ -21,6 +21,10 @@ RUN pip install --upgrade pip
 RUN pip install pipenv
 
 WORKDIR /pipeline
+
+# ADD scripts in /pipeline to the PATH
+ENV PATH="/pipeline:${PATH}"
+
 COPY Pipfile /pipeline/.
 
 # Install requirements
@@ -29,6 +33,7 @@ RUN pipenv install --skip-lock --system && pipenv --clear
 COPY config /pipeline/config
 COPY --from=model_fetcher /model/model_final.pth \
                           /pipeline/output/enhanced/model_final.pth
+
 COPY gen_metadata.py /pipeline
 
 CMD echo "python gen_metadata.py"

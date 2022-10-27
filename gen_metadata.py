@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import json
 import math
 import os
@@ -24,13 +25,18 @@ from torch.multiprocessing import Pool
 
 # torch.multiprocessing.set_start_method('forkserver')
 
+# Look for the config directory in the same directory as this script
+root_dir_path = os.path.join(os.path.dirname(__file__))
+main_config_path = os.path.join(root_dir_path, 'config', 'config.json')
+mask_config_path = os.path.join(root_dir_path, 'config', 'mask_rcnn_R_50_FPN_3x.yaml')
+
 VAL_SCALE_FAC = 0.5
-conf = json.load(open('config/config.json', 'r'))
+conf = json.load(open(main_config_path, 'r'))
 ENHANCE = bool(conf['ENHANCE'])
 JOEL = bool(conf['JOEL'])
 IOU_PCT = .02
 
-with open('config/mask_rcnn_R_50_FPN_3x.yaml', 'r') as f:
+with open(mask_config_path, 'r') as f:
     iters = yaml.load(f, Loader=yaml.FullLoader)["SOLVER"]["MAX_ITER"]
 
 
@@ -42,12 +48,12 @@ def init_model(enhance_contrast=ENHANCE, joel=JOEL, device=None):
         predictor -- DefaultPredictor(**configs).
     """
     cfg = get_cfg()
-    cfg.merge_from_file("config/mask_rcnn_R_50_FPN_3x.yaml")
+    cfg.merge_from_file(mask_config_path)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 5
     if not joel:
         cfg.OUTPUT_DIR += f"/non_enhanced" if not enhance_contrast else f"/enhanced"
         # cfg.OUTPUT_DIR += f"/non_enhanced_{iters}" if not enhance_contrast else f"/enhanced_{iters}"
-    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
+    cfg.MODEL.WEIGHTS = os.path.join(os.path.join(root_dir_path, cfg.OUTPUT_DIR), "model_final.pth")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3
     if device:
        cfg.MODEL.DEVICE = device
