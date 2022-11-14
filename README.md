@@ -107,7 +107,7 @@ These arguments are meant to simplify adding `gen_metadata.py` to a workflow tha
 A Docker container is automatically built for each **drexel_metadata** release. This container has the requirements installed and includes the model file.
 To run the singularity container for a specific version follow this pattern:
 ```
-singularity run docker://ghcr.io/hdr-bgnn/drexel_metadata:<release> python gen_metadata.py ...
+singularity run docker://ghcr.io/hdr-bgnn/drexel_metadata:<release> gen_metadata.py ...
 ```
 
 
