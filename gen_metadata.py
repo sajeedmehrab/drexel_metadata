@@ -943,7 +943,7 @@ def argument_parser():
     parser.add_argument('limit', type=int, nargs='?',
                         help='Limit the number of images processed from a directory')
     parser.add_argument('--outfname',
-                        help='Output filename to use for JSON metadata (disables printing to terminal).')
+                        help='Output filename to which to print JSON metadata (instead of terminal).')
     parser.add_argument('--device', choices=['cpu', 'cuda'], default=None,
                         help='Override the default device used for the ML model.')
     parser.add_argument('--maskfname',
