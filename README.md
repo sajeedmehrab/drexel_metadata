@@ -158,7 +158,7 @@ singularity run docker://ghcr.io/hdr-bgnn/drexel_metadata:<release> python gen_m
 
 [Joel Pepper et al.](https://ieeexplore.ieee.org/document/9651834)
 
-[Kevin Karnani et al.] (https://assets.researchsquare.com/files/rs-1506561/v1_covered.pdf?c=1651071974)
+Kevin Karnani, Joel Pepper, Yasin Bakis et al. Computational Metadata Generation Methods for Biological Specimen Image Collections, 27 April 2022, PREPRINT (Version 1) available at Research Square <https://doi.org/10.21203/rs.3.rs-1506561/v1>
 
 ## Authors
 
