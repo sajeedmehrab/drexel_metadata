@@ -939,7 +939,7 @@ def argument_parser():
     parser = argparse.ArgumentParser(description='Generate metadata for one or more fish images.')
     parser.add_argument('file_or_directory',
                         help='Path to a fish image or a directory of multiple fish images. '
-                             'When one file is passed the JSON metadata is printed to the terminal.')
+                             'When one file is passed the JSON metadata is printed to the terminal (except see --outfname).')
     parser.add_argument('limit', type=int, nargs='?',
                         help='Limit the number of images processed from a directory')
     parser.add_argument('--outfname',
