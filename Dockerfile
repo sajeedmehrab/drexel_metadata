@@ -1,4 +1,4 @@
-FROM ghcr.io/imageomics/dataverse-access:0.0.3 as model_fetcher
+FROM ghcr.io/imageomics/dataverse-access:1 as model_fetcher
 ARG DATAVERSE_API_TOKEN
 ENV DATAVERSE_URL=https://datacommons.tdai.osu.edu/
 ENV MODEL_DV_DOI=doi:10.5072/FK2/MMX6FY
