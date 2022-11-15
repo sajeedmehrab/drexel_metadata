@@ -1,6 +1,7 @@
 # Drexel Metadata
 
 ## Goal
+
 To develop a tool to check the validity of metadata associated with an image, and generate things that are missing. Also includes various geometric and statistical properties on the mask generated over the biological specimen presented.
 
 ## Functionality

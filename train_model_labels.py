@@ -30,10 +30,10 @@ def visualize_input(metadata, count):
 
 def main():
     prefix = open('config/overall_prefix.txt').readlines()[0].strip()
-    conf = json.load(open('config/training_data.json'))
+    conf = json.load(open('config/training_data_ocr.json'))
     metadata = None  # Need it in outer block for reuse
     train = []
-    test_images = f'{prefix}full_imgs/'
+    test_images = f'{prefix}inhs_images_smaller/'
 
     for img_dir in conf.keys():
         ims = f'{prefix}{img_dir}'
@@ -77,7 +77,7 @@ def main():
     trainer.resume_or_load(resume=True)
     trainer.train()
 
-    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "enhance_model_final.pth")
+    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "ocr_model_NEW.pth")
     # set the testing threshold for this model
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.1
     predictor = DefaultPredictor(cfg)

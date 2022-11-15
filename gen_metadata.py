@@ -58,6 +58,7 @@ def init_model(enhance_contrast=ENHANCE, joel=JOEL, device=None):
     if device:
        cfg.MODEL.DEVICE = device
     predictor = DefaultPredictor(cfg)
+    
     return predictor
 
 
