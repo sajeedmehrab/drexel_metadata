@@ -2,11 +2,6 @@
 
 ## Goal
 
-To develop a tool to check the validity of metadata associated with an image, and generate things that are missing. Currently setting up off the shelf machine learning to detect presence of fish and count how many there are.
-## Status
-
-# In this branch go straight to the folder gen_metadata_mini
-=======
 To develop a tool to check the validity of metadata associated with an image, and generate things that are missing. Also includes various geometric and statistical properties on the mask generated over the biological specimen presented.
 
 ## Functionality
@@ -72,10 +67,50 @@ The metadata generated is extremely specific to our use case. In addition, we pe
 
 The metadata generated produces various statistical and geometric properties of a biological specimen image or collection in a JSON format. When a single file is passed, the data is yielded to the console (stdout). When a directory is passed, the data is stored in a JSON file.
 
+### Model
+The trained model is available as "Drexel_metadata_generator" at https://datacommons.tdai.osu.edu/dataverse/fish-traits/.
+The model can be downloaded from that website or via the [dva](https://github.com/Imageomics/dataverse-access) command line utility.
+To download from the command line install dva then run the following command:
+```
+dva download --url https://datacommons.tdai.osu.edu/ doi:10.5072/FK2/MMX6FY .
+```
+The above command will download the file and verify the checksum.
+
+### Running
 To generate the metadata, run the following command:
 ```bash
 pipenv run python3 gen_metadata.py [file_or_dir_name]
 ```
+
+Usage:
+```
+gen_metadata.py [-h] [--device {cpu,cuda}] [--outfname OUTFNAME] [--maskfname MASKFNAME] [--visfname VISFNAME]
+                       file_or_directory [limit]
+```
+
+The `limit` parameter will limit 
+the number of files processed in the directory. The `limit` positional argument is only applicable when passing a directory. 
+
+#### Device Configuration
+By default `gen_metadata.py` requires a GPU (cuda).
+To use a CPU instead pass the `--device cpu` argument to `gen_metadata.py`.
+
+#### Single File Usage
+The following three arguments are only supported when processing a single image file:
+- `--outfname <filename>` - When passed the script will save the output metadata JSON to `<filename>` instead of printing to the console (the default behavior when processing one file).
+- `--maskfname <filename>` - Enables logic to save an output mask to `<filename>` for the single input file.
+- `--visfname <filename>` - Changes the script to save the output visualization to `<filename>` instead of the hard coded location.
+
+These arguments are meant to simplify adding `gen_metadata.py` to a workflow that process files individually.
+
+
+### Running with Singularity
+A Docker container is automatically built for each **drexel_metadata** release. This container has the requirements installed and includes the model file.
+To run the singularity container for a specific version follow this pattern:
+```
+singularity run docker://ghcr.io/hdr-bgnn/drexel_metadata:<release> gen_metadata.py ...
+```
+
 
 ## Properties Generated
 
@@ -120,10 +155,14 @@ pipenv run python3 gen_metadata.py [file_or_dir_name]
 | solidity             | Per Fish                 | Float             | The ratio of pixels in the fish to pixels of the convex hull image.                                                              |
 | std             | Per Fish                 | Float             | The standard deviation of the mask pixel coordinate distribution. |
 
+## Associated Publication
+
+J. Pepper, J. Greenberg, Y. Bakiş, X. Wang, H. Bart and D. Breen, "Automatic Metadata Generation for Fish Specimen Image Collections," 2021 ACM/IEEE Joint Conference on Digital Libraries (JCDL), 2021, pp. 31-40, doi: [10.1109/JCDL52503.2021.00015](https://doi.org/10.1109/JCDL52503.2021.00015).
+
+Kevin Karnani, Joel Pepper, Yasin Bakis et al. Computational Metadata Generation Methods for Biological Specimen Image Collections, 27 April 2022, PREPRINT (Version 1) available at Research Square <https://doi.org/10.21203/rs.3.rs-1506561/v1>
+
 ## Authors
 
 Joel Pepper
 
 Kevin Karnani
-
-

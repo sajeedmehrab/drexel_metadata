@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import json
 import math
 import os
@@ -5,6 +6,7 @@ import pprint
 import sys
 import yaml
 from random import shuffle
+import argparse
 
 import gc
 import torch
@@ -23,17 +25,22 @@ from torch.multiprocessing import Pool
 
 # torch.multiprocessing.set_start_method('forkserver')
 
+# Look for the config directory in the same directory as this script
+root_dir_path = os.path.join(os.path.dirname(__file__))
+main_config_path = os.path.join(root_dir_path, 'config', 'config.json')
+mask_config_path = os.path.join(root_dir_path, 'config', 'mask_rcnn_R_50_FPN_3x.yaml')
+
 VAL_SCALE_FAC = 0.5
-conf = json.load(open('config/config.json', 'r'))
+conf = json.load(open(main_config_path, 'r'))
 ENHANCE = bool(conf['ENHANCE'])
 JOEL = bool(conf['JOEL'])
 IOU_PCT = .02
 
-with open('config/mask_rcnn_R_50_FPN_3x.yaml', 'r') as f:
+with open(mask_config_path, 'r') as f:
     iters = yaml.load(f, Loader=yaml.FullLoader)["SOLVER"]["MAX_ITER"]
 
 
-def init_model(enhance_contrast=ENHANCE, joel=JOEL, processor='cpu'):
+def init_model(enhance_contrast=ENHANCE, joel=JOEL, device=None):
     """
     Initialize model using config files for RCNN, the trained weights, and other parameters.
 
@@ -41,20 +48,22 @@ def init_model(enhance_contrast=ENHANCE, joel=JOEL, processor='cpu'):
         predictor -- DefaultPredictor(**configs).
     """
     cfg = get_cfg()
-    cfg.merge_from_file("config/mask_rcnn_R_50_FPN_3x.yaml")
+    cfg.merge_from_file(mask_config_path)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 5
     if not joel:
         cfg.OUTPUT_DIR += f"/non_enhanced" if not enhance_contrast else f"/enhanced"
         # cfg.OUTPUT_DIR += f"/non_enhanced_{iters}" if not enhance_contrast else f"/enhanced_{iters}"
-    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
+    cfg.MODEL.WEIGHTS = os.path.join(os.path.join(root_dir_path, cfg.OUTPUT_DIR), "model_final.pth")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3
-    cfg.MODEL.DEVICE = processor
+    if device:
+       cfg.MODEL.DEVICE = device
     predictor = DefaultPredictor(cfg)
     
     return predictor
 
 
-def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_fish=False):
+def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_fish=False, device=None, maskfname=None,
+                 visfname=None):
     """
     Generates metadata of an image and stores attributes into a Dictionary.
 
@@ -63,7 +72,7 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
     Returns:
         {file_name: results} -- dictionary of file and associated results.
     """
-    predictor = init_model()
+    predictor = init_model(device=device)
     im = cv2.imread(file_path)
     im_gray = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
     if enhance_contrast:
@@ -137,14 +146,15 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
     if visualize:
         cv2.imshow('prediction', np.array(vis.get_image()[:, :, ::-1], dtype=np.uint8))
         cv2.waitKey(0)
-    os.makedirs('images', exist_ok=True)
-    os.makedirs('images/enhanced', exist_ok=True)
-    os.makedirs('images/non_enhanced', exist_ok=True)
-    dirname = 'images/'
-    dirname += 'enhanced/' if enhance_contrast else 'non_enhanced/'
-    print(file_name)
-    cv2.imwrite(f'{dirname}/gen_prediction_{f_name}.png',
-                vis.get_image()[:, :, ::-1])
+    if not visfname:
+        os.makedirs('images', exist_ok=True)
+        os.makedirs('images/enhanced', exist_ok=True)
+        os.makedirs('images/non_enhanced', exist_ok=True)
+        dirname = 'images/'
+        dirname += 'enhanced/' if enhance_contrast else 'non_enhanced/'
+        print(file_name)
+        visfname = f'{dirname}/gen_prediction_{f_name}.png'
+    cv2.imwrite(visfname, vis.get_image()[:, :, ::-1])
     skippable_fish = []
     fish_length = 0
     if fish:
@@ -200,6 +210,9 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
                 print('Mask failed: {file_name}')
                 results['errored'] = True
             else:
+                if maskfname:
+                    mask_uint8 = np.where(mask == 1, 255, 0).astype(np.uint8)
+                    cv2.imwrite(maskfname, mask_uint8)
                 im_crop = im_gray[bbox[1]:bbox[3], bbox[0]:bbox[2]].reshape(-1)
                 mask_crop = mask[bbox[1]:bbox[3], bbox[0]:bbox[2]].reshape(-1)
                 mask_coords = np.argwhere(mask != 0)[:, [1, 0]]
@@ -255,7 +268,7 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
                     need_scaling = True
                     factor = 4
                     eye_center, side, clock_val = upscale(
-                        im, bbox, f_name, factor)
+                        im, bbox, f_name, factor, device)
                     if eye_center is not None and side is not None:
                         results['fish'][i]['eye_center'] = eye_center
                         results['fish'][i]['side'] = side
@@ -302,10 +315,10 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
     return {f_name: results}
 
 
-def gen_metadata_upscale(file_path, fish):
+def gen_metadata_upscale(file_path, fish, device=None):
     gc.collect()
     torch.cuda.empty_cache()
-    predictor = init_model()
+    predictor = init_model(device=device)
     im = fish
     im_gray = cv2.cvtColor(fish, cv2.COLOR_BGR2GRAY)
     output = predictor(im)
@@ -374,14 +387,14 @@ def gen_metadata_upscale(file_path, fish):
     return {f_name: results}
 
 
-def upscale(im, bbox, f_name, factor):
+def upscale(im, bbox, f_name, factor, device):
     h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
     scaled = cv2.resize(im[bbox[1]:bbox[3], bbox[0]:bbox[2]].copy(), (w * factor, h * factor),
                         interpolation=cv2.INTER_CUBIC)
     os.makedirs('images/testing', exist_ok=True)
     cv2.imwrite(f'images/testing/{f_name}.png', scaled)
     eye_center, side, clock_val, scale = None, None, None, None
-    new_data = gen_metadata_upscale(f'images/testing/{f_name}.png', scaled)
+    new_data = gen_metadata_upscale(f'images/testing/{f_name}.png', scaled, device=device)
     if 'fish' in new_data[f'{f_name}'] and new_data[f'{f_name}']['fish'][0]['has_eye']:
         eye_center = new_data[f'{f_name}']['fish'][0]['eye_center']
         eye_x, eye_y = eye_center
@@ -912,37 +925,74 @@ def shrink_bbox(mask):
     return cmin, rmin, cmax, rmax
 
 
-def gen_metadata_safe(file_path):
+def gen_metadata_safe(file_path, device=None, maskfname=None, visfname=None):
     """
     Deals with erroneous metadata generation errors.
     """
     try:
-        return gen_metadata(file_path)
+        return gen_metadata(file_path, device=device, maskfname=maskfname, visfname=visfname)
     except Exception as e:
         print(f'{file_path}: Errored out ({e})')
         return {file_path: {'errored': True}}
 
 
+def argument_parser():
+    parser = argparse.ArgumentParser(description='Generate metadata for one or more fish images.')
+    parser.add_argument('file_or_directory',
+                        help='Path to a fish image or a directory of multiple fish images. '
+                             'When one file is passed the JSON metadata is printed to the terminal (except see --outfname).')
+    parser.add_argument('limit', type=int, nargs='?',
+                        help='Limit the number of images processed from a directory')
+    parser.add_argument('--outfname',
+                        help='Output filename to which to print JSON metadata (instead of terminal).')
+    parser.add_argument('--device', choices=['cpu', 'cuda'], default=None,
+                        help='Override the default device used for the ML model.')
+    parser.add_argument('--maskfname',
+                        help='Save a mask image with the provided filename. '
+                             'Only supported when processing a single image file.')
+    parser.add_argument('--visfname',
+                        help='Overwrites default visualization filename. '
+                             'Only supported when processing a single image file.')
+    return parser
+
+
 def main():
-    direct = sys.argv[1]
+    parser = argument_parser()
+    args = parser.parse_args()
+    direct = args.file_or_directory
     if os.path.isdir(direct):
         files = [entry.path for entry in os.scandir(direct)]
-        if len(sys.argv) > 2:
-            files = files[:int(sys.argv[2])]
+        if args.limit:
+            files = files[:args.limit]
     else:
         files = [direct]
+
     #with Pool(2) as p:
     #    results = p.map(gen_metadata_safe, files)
-    results = map(gen_metadata_safe, files)
+    num_files = len(files)
+    if num_files == 1:
+        results = [gen_metadata_safe(files[0], maskfname=args.maskfname,
+                                     visfname=args.visfname, device=args.device)]
+    else:
+        if args.maskfname:
+            print("Error: The `--maskfname` argument cannot be used with multiple input files.")
+            sys.exit(0)
+        if args.visfname:
+            print("error: the `--visfname` argument cannot be used with multiple input files.")
+            sys.exit(0)
+        results = map(gen_metadata_safe, files, [args.device] * num_files)
     output = {}
     for i in results:
         output[list(i.keys())[0]] = list(i.values())[0]
-    fname = f'metadata_{iters}.json' if not JOEL else 'metadata.json'
-    if ENHANCE:
-        fname = 'enhanced_' + fname
+    if args.outfname:
+       fname = args.outfname
     else:
-        fname = 'non_enhanced_' + fname
-    if len(output) > 1:
+        fname = f'metadata_{iters}.json' if not JOEL else 'metadata.json'
+        if ENHANCE:
+            fname = 'enhanced_' + fname
+        else:
+            fname = 'non_enhanced_' + fname
+    if len(output) > 1 or args.outfname:
         with open(fname, 'w') as f:
             json.dump(output, f)
     else:
