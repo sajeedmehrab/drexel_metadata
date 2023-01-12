@@ -27,7 +27,8 @@ from torch.multiprocessing import Pool
 
 # Look for the config directory in the same directory as this script
 root_dir_path = os.path.join(os.path.dirname(__file__))
-main_config_path = os.path.join(root_dir_path, 'config', 'config.json')
+config_filename = os.environ.get('DM_CONFIG_FILENAME', 'config.json')
+main_config_path = os.path.join(root_dir_path, 'config', config_filename)
 mask_config_path = os.path.join(root_dir_path, 'config', 'mask_rcnn_R_50_FPN_3x.yaml')
 
 VAL_SCALE_FAC = 0.5

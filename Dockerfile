@@ -36,4 +36,7 @@ COPY --from=model_fetcher /model/model_final.pth \
 
 COPY gen_metadata.py /pipeline
 
+# Default to use enhanced model added above (unset DM_CONFIG_FILENAME to use config.json)
+ENV DM_CONFIG_FILENAME config_enhance_no_joel.json
+
 CMD echo "python gen_metadata.py"
