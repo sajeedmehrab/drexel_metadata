@@ -11,10 +11,10 @@ verify_ssl = false
 [packages]
 numpy = "*"
 pynrrd = "*"
-pillow = "*"
+pillow = "==9.4.0"
 opencv-python = "*"
 ipython = "*"
-scikit-image = "*"
+scikit-image = "==0.19.3"
 pandas = "*"
 iopath = "*"
 imutils = "*"

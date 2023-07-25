@@ -1,11 +1,11 @@
-FROM ghcr.io/imageomics/dataverse-access:1 as model_fetcher
-ARG DATAVERSE_API_TOKEN
-ENV DATAVERSE_URL=https://datacommons.tdai.osu.edu/
-ENV MODEL_DV_DOI=doi:10.5072/FK2/MMX6FY
+FROM alpine/git:2.40.1 as model_fetcher
+ENV MODEL_REPO_URL=https://huggingface.co/imageomics/Drexel-metadata-generator
 
 # Download model_final.pth
 RUN mkdir -p /model \
-    && dva download $MODEL_DV_DOI /model
+    && cd /model \
+    && git clone --depth=1 ${MODEL_REPO_URL}
+RUN ls /model
 
 FROM python:3.8.10-slim-buster
 LABEL "org.opencontainers.image.authors"="John Bradley <john.bradley@duke.edu>"
@@ -27,11 +27,14 @@ ENV PATH="/pipeline:${PATH}"
 
 COPY Pipfile /pipeline/.
 
+# Fix issue installing pycallgraph related to use_2to3 being removed from setuptools
+RUN pip install setuptools==57.0.0
+
 # Install requirements
 RUN pipenv install --skip-lock --system && pipenv --clear
 
 COPY config /pipeline/config
-COPY --from=model_fetcher /model/model_final.pth \
+COPY --from=model_fetcher /model/Drexel-metadata-generator/model_final.pth \
                           /pipeline/output/enhanced/model_final.pth
 
 COPY gen_metadata.py /pipeline
