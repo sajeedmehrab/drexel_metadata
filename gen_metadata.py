@@ -57,23 +57,27 @@ def init_model(enhance_contrast=ENHANCE, joel=JOEL, device=None):
     cfg.MODEL.WEIGHTS = os.path.join(os.path.join(root_dir_path, cfg.OUTPUT_DIR), "model_final.pth")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3
     if device:
-       cfg.MODEL.DEVICE = device
+        cfg.MODEL.DEVICE = device
     predictor = DefaultPredictor(cfg)
     
     return predictor
 
 
-def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_fish=False, device=None, maskfname=None,
+def gen_metadata(file_path, predictor, metadata, enhance_contrast=ENHANCE, visualize=False, multiple_fish=False, device=None, maskfname=None,
                  visfname=None):
     """
     Generates metadata of an image and stores attributes into a Dictionary.
 
     Parameters:
         file_path -- string of path to image file.
+        predictor -- Passed to model to avoid repetitive loading of model
+        metadata -- 
     Returns:
         {file_name: results} -- dictionary of file and associated results.
     """
-    predictor = init_model(device=device)
+    
+  
+    
     im = cv2.imread(file_path)
     im_gray = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
     if enhance_contrast:
@@ -94,12 +98,8 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
 
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         im_gray = clahe.apply(im_gray)
-    metadata = Metadata(evaluator_type='coco', image_root='.',
-                        json_file='',
-                        name='metadata',
-                        thing_classes=['fish', 'ruler', 'eye', 'two', 'three'],
-                        thing_dataset_id_to_contiguous_id={1: 0, 2: 1, 3: 2, 4: 3, 5: 4}
-                        )
+        
+    
     output = predictor(im)
     insts = output['instances']
     selector = insts.pred_classes == 0
@@ -933,12 +933,12 @@ def shrink_bbox(mask):
     return cmin, rmin, cmax, rmax
 
 
-def gen_metadata_safe(file_path, device=None, maskfname=None, visfname=None):
+def gen_metadata_safe(file_path, predictor, metadata, device=None, maskfname=None, visfname=None):
     """
     Deals with erroneous metadata generation errors.
     """
     try:
-        return gen_metadata(file_path, device=device, maskfname=maskfname, visfname=visfname)
+        return gen_metadata(file_path, predictor, metadata, device=device, maskfname=maskfname, visfname=visfname)
     except Exception as e:
         print(f'{file_path}: Errored out ({e})')
         return {file_path: {'errored': True}}
@@ -968,19 +968,31 @@ def main():
     parser = argument_parser()
     args = parser.parse_args()
     direct = args.file_or_directory
+    device = args.device
     if os.path.isdir(direct):
         files = [entry.path for entry in os.scandir(direct)]
         if args.limit:
             files = files[:args.limit]
     else:
         files = [direct]
+        
+    #Initialize predictor object
+    predictor = init_model(device=device)
+    
+    #Initialize metadata object
+    metadata = Metadata(evaluator_type='coco', image_root='.',
+                        json_file='',
+                        name='metadata',
+                        thing_classes=['fish', 'ruler', 'eye', 'two', 'three'],
+                        thing_dataset_id_to_contiguous_id={1: 0, 2: 1, 3: 2, 4: 3, 5: 4}
+                        )
 
     #with Pool(2) as p:
     #    results = p.map(gen_metadata_safe, files)
     num_files = len(files)
     if num_files == 1:
-        results = [gen_metadata_safe(files[0], maskfname=args.maskfname,
-                                     visfname=args.visfname, device=args.device)]
+        results = [gen_metadata_safe(files[0], predictor, metadata, maskfname=args.maskfname,
+                                     visfname=args.visfname, device=device)]
     else:
         if args.maskfname:
             print("Error: The `--maskfname` argument cannot be used with multiple input files.")
@@ -988,12 +1000,12 @@ def main():
         if args.visfname:
             print("error: the `--visfname` argument cannot be used with multiple input files.")
             sys.exit(0)
-        results = map(gen_metadata_safe, files, [args.device] * num_files)
+        results = map(gen_metadata_safe, files, [predictor] * num_files, [metadata] * num_files, [device] * num_files)
     output = {}
     for i in results:
         output[list(i.keys())[0]] = list(i.values())[0]
     if args.outfname:
-       fname = args.outfname
+        fname = args.outfname
     else:
         fname = f'metadata_{iters}.json' if not JOEL else 'metadata.json'
         if ENHANCE:
