@@ -1,0 +1,1 @@
+python gen_metadata.py --outfname ../metadatas/testglin_modified_code.json --device cuda /projects/ml4science/FishAIR/TestGLIN
