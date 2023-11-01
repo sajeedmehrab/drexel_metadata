@@ -141,21 +141,28 @@ def gen_metadata(file_path, enhance_contrast=ENHANCE, visualize=False, multiple_
         results['unit'] = 'cm'
     else:
         scale = None
-    visualizer = Visualizer(im[:, :, ::-1], metadata=metadata, scale=1.0)
-    vis = visualizer.draw_instance_predictions(insts.to('cpu'))
+    
     f_name = file_name.split('.')[0]
-    if visualize:
-        cv2.imshow('prediction', np.array(vis.get_image()[:, :, ::-1], dtype=np.uint8))
-        cv2.waitKey(0)
-    if not visfname:
-        os.makedirs('images', exist_ok=True)
-        os.makedirs('images/enhanced', exist_ok=True)
-        os.makedirs('images/non_enhanced', exist_ok=True)
-        dirname = 'images/'
-        dirname += 'enhanced/' if enhance_contrast else 'non_enhanced/'
-        print(file_name)
-        visfname = f'{dirname}/gen_prediction_{f_name}.png'
-    cv2.imwrite(visfname, vis.get_image()[:, :, ::-1])
+    
+    ############# Removed generation of images. These images are the output of mask-rcnn in detectron2 only. #####
+    
+    ##visualizer = Visualizer(im[:, :, ::-1], metadata=metadata, scale=1.0)
+    ##vis = visualizer.draw_instance_predictions(insts.to('cpu'))
+    ##if visualize:
+    ##    cv2.imshow('prediction', np.array(vis.get_image()[:, :, ::-1], dtype=np.uint8))
+    ##    cv2.waitKey(0)
+    ##if not visfname:
+    ##    os.makedirs('images', exist_ok=True)
+    ##    os.makedirs('images/enhanced', exist_ok=True)
+    ##    os.makedirs('images/non_enhanced', exist_ok=True)
+    ##    dirname = 'images/'
+    ##    dirname += 'enhanced/' if enhance_contrast else 'non_enhanced/'
+    ##    print(file_name)
+    ##    visfname = f'{dirname}/gen_prediction_{f_name}.png'
+    ##cv2.imwrite(visfname, vis.get_image()[:, :, ::-1])
+      
+    ###############################################################################################################
+    
     skippable_fish = []
     fish_length = 0
     if fish:
